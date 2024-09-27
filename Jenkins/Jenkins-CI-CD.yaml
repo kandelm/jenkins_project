@@ -1,0 +1,130 @@
+pipeline {
+    agent any
+    stages {
+        stage('CI Stage - Checkout and Build') {
+            agent {
+                kubernetes {
+                    label 'build-pod'
+                    yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    some-label: build-pod
+spec:
+  containers:
+  - name: builder
+    image: maven:3.6.3-jdk-8
+    command:
+    - cat
+    tty: true
+"""
+                }
+            }
+            steps {
+                git branch: 'main', url: 'https://github.com/your-repo.git'
+                container('builder') {
+                    sh 'mvn clean install'
+                }
+            }
+        }
+        stage('CD Stage - Create and Deploy YAML') {
+            steps {
+                script {
+                    sh '''
+                    echo "
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  namespace: my-namespace
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-container
+        image: my-docker-image:latest
+        ports:
+        - containerPort: 8080
+" > deployment.yaml
+
+                    kubectl get ns my-namespace || kubectl create ns my-namespace
+                    kubectl apply -f deployment.yaml
+                    '''
+                }
+            }
+        }
+    }
+}
+pipeline {
+    agent any
+    stages {
+        stage('CI Stage - Checkout and Build') {
+            agent {
+                kubernetes {
+                    label 'build-pod'
+                    yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    some-label: build-pod
+spec:
+  containers:
+  - name: builder
+    image: maven:3.6.3-jdk-8
+    command:
+    - cat
+    tty: true
+"""
+                }
+            }
+            steps {
+                git branch: 'main', url: 'https://github.com/your-repo.git'
+                container('builder') {
+                    sh 'mvn clean install'
+                }
+            }
+        }
+        stage('CD Stage - Create and Deploy YAML') {
+            steps {
+                script {
+                    sh '''
+                    echo "
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  namespace: my-namespace
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-container
+        image: my-docker-image:latest
+        ports:
+        - containerPort: 8080
+" > deployment.yaml
+
+                    kubectl get ns my-namespace || kubectl create ns my-namespace
+                    kubectl apply -f deployment.yaml
+                    '''
+                }
+            }
+        }
+    }
+}

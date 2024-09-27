@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage('CI Stage - Checkout and Build') {
+            agent {
+                kubernetes {
+                    label 'build-pod'
+                    yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    some-label: build-pod
+spec:
+  containers:
+  - name: builder
+    image: maven:3.6.3-jdk-8
+    command:
+    - cat
+    tty: true
+"""
+                }
+            }
+            steps {
+                // Checkout the source code from GitHub
+                git branch: 'main', url: 'https://github.com/kandelm/k8s-project'
+                
+                // Build the project using Maven inside the build pod
+                container('builder') {
+                    sh 'mvn clean install'
+                }
+            }
+        }
+
+        stage('CD Stage - Deploy to Kubernetes') {
+            steps {
+                script {
+                    // Apply all YAML files from the k8s folder to Kubernetes
+                    sh '''
+                    kubectl apply -f K8S/backend_deployment.yaml
+                    kubectl apply -f K8S/proxy_deployment.yaml
+                    kubectl apply -f K8S/database_deployment.yaml
+                    kubectl apply -f K8S/backend_service.yaml
+                    kubectl apply -f K8S/proxy_service.yaml
+                    kubectl apply -f K8S/db_service.yaml
+                    kubectl apply -f K8S/db-data-pv.yaml
+                    kubectl apply -f K8S/db-data-pvc.yaml
+                    kubectl apply -f K8S/db-secret.yaml
+                    '''
+                }
+            }
+        }
+    }
+}
